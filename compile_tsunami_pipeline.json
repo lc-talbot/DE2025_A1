@@ -1,0 +1,36 @@
+{
+  "steps": [
+    {
+      "name": "python:3.10",
+      "entrypoint": "/bin/sh",
+      "env": [
+        "PROJECT_ID=$PROJECT_ID",
+        "REGION=${_REGION}",
+        "REPOSITORY=${_REPOSITORY}",
+        "DATA_BUCKET=${_DATA_BUCKET}",
+        "MODEL_BUCKET=${_MODEL_BUCKET}",
+        "TEMP_BUCKET=${_TEMP_BUCKET}"
+      ],
+      "args": [
+        "-c",
+        "cd ./pipeline && python -m venv .venv && . .venv/bin/activate && python -m pip install --upgrade pip && python -m pip install -r requirements.txt && python tsunami_pipeline.py"
+      ],
+      "id": "compile-pipeline"
+    },
+    {
+      "name": "gcr.io/cloud-builders/gsutil",
+      "args": [
+        "cp",
+        "./pipeline/tsunami_training_pipeline.yaml",
+        "gs://${_PIPELINE_REPO}"
+      ],
+      "waitFor": [
+        "compile-pipeline"
+      ],
+      "id": "upload-pipeline"
+    }
+  ],
+  "options": {
+    "logging": "CLOUD_LOGGING_ONLY"
+  }
+}

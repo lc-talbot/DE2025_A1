@@ -1,0 +1,10 @@
+{
+  "project_id": "tsunami-prediction-mlops",
+  "data_bucket": "data_tsunami_2023019",
+  "data_filename": "earthquake_data_tsunami.csv",
+  "model_bucket": "models_tsunami_2023019",
+  "temp_bucket": "temp_tsunami_2023019",
+  "deployed_model_file": "deployed_model.pkl",
+  "model_candidate_file": "model_candidate.pkl",
+  "cicd_webhook_url": "none"
+}
