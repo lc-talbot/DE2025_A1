@@ -33,7 +33,7 @@
         "build",
         "-t",
         "${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/xgboost-trainer:0.0.1",
-        "./components/xgboost-trainer"
+        "./components/XGBoost-trainer"
       ]
     },
     {
