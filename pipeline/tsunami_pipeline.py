@@ -7,7 +7,8 @@ from kfp.dsl import (Artifact,
                      Output,
                      Model,
                      Dataset,
-                     Metrics)
+                     Metrics,
+                     OutputPath)
 import os
 
 
@@ -89,12 +90,12 @@ def model_compare(project: str, rf_metrics: Input[Metrics], xgb_metrics: Input[M
 @dsl.container_component
 def deployment_model_evaluation(project: str, bucket: str, deployed_model_file: str,
                                 best_model: Input[Model], test_data: Input[Dataset],
-                                decision: Output[Artifact]):
+                                decision: OutputPath(str)):
     return dsl.ContainerSpec(
         image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/deployment-model-evaluation:0.0.1',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--project_id', project, '--bucket', bucket, '--deployed_model_file', deployed_model_file,
-              '--new_model_path', best_model.path, '--test_path', test_data.path, '--decision_path', decision.path])
+              '--new_model_path', best_model.path, '--test_path', test_data.path, '--decision_path', decision])
 
 
 @dsl.container_component
@@ -180,9 +181,9 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
     )
     
     # Step 7: Upload Model and Trigger CI/CD (conditional on approval)
-    # FIXED: Using dsl.Condition (not dsl.If) for KFP v2 compatibility
+    # Using dsl.Condition to check if decision is "DEPLOY_NEW"
     with dsl.Condition(
-        deployment_eval_op.outputs['decision'].path != '',
+        deployment_eval_op.outputs['decision'] == "DEPLOY_NEW",
         name='check-deployment-approval'
     ):
         upload_op = model_upload_trigger_cicd(
