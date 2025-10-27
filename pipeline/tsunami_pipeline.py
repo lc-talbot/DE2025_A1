@@ -88,28 +88,6 @@ def model_compare(project: str, rf_metrics: Input[Metrics], xgb_metrics: Input[M
 
 
 @dsl.container_component
-def deployment_model_evaluation(
-    project: str, 
-    bucket: str, 
-    deployed_model_file: str,
-    best_model: Input[Model], 
-    test_data: Input[Dataset],
-    decision: OutputPath(str)  # OutputPath for simple string output
-):
-    return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/deployment-model-evaluation:0.0.1',
-        command=['python3', '/pipelines/component/src/component.py'],
-        args=[
-            '--project_id', project, 
-            '--bucket', bucket, 
-            '--deployed_model_file', deployed_model_file,
-            '--new_model_path', best_model.path, 
-            '--test_path', test_data.path, 
-            '--decision_path', decision
-        ])
-
-
-@dsl.container_component
 def model_upload_trigger_cicd(project: str, temp_bucket: str, model_bucket: str, 
                               model_file_name: str, best_model: Input[Model], cicd_webhook_url: str):
     return dsl.ContainerSpec(
@@ -131,7 +109,9 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
     Tsunami Prediction Training Pipeline
     
     Trains Random Forest and XGBoost models to predict tsunami risk from earthquake data.
-    Automatically selects and deploys the best performing model.
+    Automatically selects and uploads the best performing model.
+    
+    SIMPLIFIED VERSION: Always uploads the best model (no conditional deployment logic).
     """
     
     # Step 1: Data Ingestion
@@ -189,31 +169,17 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
     compare_op.after(rf_eval_op)   # Explicit dependency
     compare_op.after(xgb_eval_op)  # Explicit dependency
     
-    # Step 6: Evaluate Against Deployed Model
-    # Must wait for model comparison to complete
-    deployment_eval_op = deployment_model_evaluation(
+    # Step 6: Upload Best Model
+    # Always uploads the best model to GCS
+    upload_op = model_upload_trigger_cicd(
         project=project_id,
-        bucket=model_bucket,
-        deployed_model_file=deployed_model_file,
+        temp_bucket=temp_bucket,
+        model_bucket=model_bucket,
+        model_file_name=model_candidate_file,
         best_model=compare_op.outputs['best_model'],
-        test_data=split_op.outputs['test_data']
+        cicd_webhook_url=cicd_webhook_url
     )
-    deployment_eval_op.after(compare_op)  # Explicit dependency
-    
-    # Step 7: Upload Model and Trigger CI/CD (conditional on approval)
-    # Only uploads if deployment evaluation returns "DEPLOY_NEW"
-    with dsl.Condition(
-        deployment_eval_op.outputs['decision'] == "DEPLOY_NEW",
-        name='check-deployment-approval'
-    ):
-        upload_op = model_upload_trigger_cicd(
-            project=project_id,
-            temp_bucket=temp_bucket,
-            model_bucket=model_bucket,
-            model_file_name=model_candidate_file,
-            best_model=compare_op.outputs['best_model'],
-            cicd_webhook_url=cicd_webhook_url
-        )
+    upload_op.after(compare_op)  # Explicit dependency
 
 
 # ==================== COMPILE FUNCTION ====================
