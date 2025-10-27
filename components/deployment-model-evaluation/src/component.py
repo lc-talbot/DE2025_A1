@@ -131,12 +131,20 @@ def compare_models(project_id: str, bucket: str, deployed_model_file: str,
     # Write decision to output file
     # CRITICAL: Write ONLY the decision string, nothing else!
     logging.info(f"Writing decision to {decision_path}")
+    
+    # Ensure parent directory exists
     Path(decision_path).parent.mkdir(parents=True, exist_ok=True)
     
+    # Write only the decision string (no JSON, no extra formatting)
     with open(decision_path, 'w') as f:
-        f.write(decision)  # Write ONLY "DEPLOY_NEW" or "KEEP_OLD"
+        f.write(decision)
     
-    logging.info(f"Decision written: {decision}")
+    logging.info(f"Decision written successfully: {decision}")
+    
+    # Verify what was written
+    with open(decision_path, 'r') as f:
+        written_content = f.read()
+    logging.info(f"Verification - file contains: '{written_content}'")
     logging.info("=" * 60)
 
 

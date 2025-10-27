@@ -94,7 +94,7 @@ def deployment_model_evaluation(
     deployed_model_file: str,
     best_model: Input[Model], 
     test_data: Input[Dataset],
-    decision: OutputPath(str)  # OutputPath for simple string
+    decision: OutputPath(str)  # OutputPath for simple string output
 ):
     return dsl.ContainerSpec(
         image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/deployment-model-evaluation:0.0.1',
@@ -106,8 +106,8 @@ def deployment_model_evaluation(
             '--new_model_path', best_model.path, 
             '--test_path', test_data.path, 
             '--decision_path', decision
-        ]
-    )
+        ])
+
 
 @dsl.container_component
 def model_upload_trigger_cicd(project: str, temp_bucket: str, model_bucket: str, 
@@ -129,6 +129,9 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
                      model_candidate_file: str, cicd_webhook_url: str):
     """
     Tsunami Prediction Training Pipeline
+    
+    Trains Random Forest and XGBoost models to predict tsunami risk from earthquake data.
+    Automatically selects and deploys the best performing model.
     """
     
     # Step 1: Data Ingestion
@@ -179,10 +182,6 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
         xgb_model=xgb_train_op.outputs['xgb_model']
     )
     
-    # ==========================================
-    # PUT YOUR CODE HERE ↓↓↓
-    # ==========================================
-    
     # Step 6: Evaluate Against Deployed Model
     deployment_eval_op = deployment_model_evaluation(
         project=project_id,
@@ -192,7 +191,8 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
         test_data=split_op.outputs['test_data']
     )
     
-    # Step 7: Upload Model and Trigger CI/CD (conditional)
+    # Step 7: Upload Model and Trigger CI/CD (conditional on approval)
+    # Only uploads if deployment evaluation returns "DEPLOY_NEW"
     with dsl.Condition(
         deployment_eval_op.outputs['decision'] == "DEPLOY_NEW",
         name='check-deployment-approval'
@@ -205,10 +205,6 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
             best_model=compare_op.outputs['best_model'],
             cicd_webhook_url=cicd_webhook_url
         )
-    
-    # ==========================================
-    # End of pipeline function
-    # ==========================================
 
 
 # ==================== COMPILE FUNCTION ====================
