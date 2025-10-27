@@ -1,102 +1,163 @@
+#!/usr/bin/env python3
+"""
+Deployment Model Evaluation Component
+Compares new model against currently deployed model.
+Returns decision: DEPLOY_NEW or KEEP_OLD
+"""
+
+import argparse
 import logging
 import sys
-from pathlib import Path
 import os
+from pathlib import Path
+
 import pandas as pd
 import joblib
-from sklearn.metrics import accuracy_score
 from google.cloud import storage
-from kfp.v2.dsl import component, Input, Output, Dataset, Artifact, Model
+from sklearn.metrics import accuracy_score
 
 
-@component(
-    base_image="python:3.10",
-    packages_to_install=[
-        "pandas==1.5.3",
-        "scikit-learn==1.2.2",
-        "joblib==1.3.2",
-        "google-cloud-storage==2.10.0",
-    ],
-)
-def evaluate_deployment_model(
-    project_id: str,
-    bucket: str,
-    deployed_model_file: str,
-    new_model: Input[Model],
-    test_data: Input[Dataset],
-    decision: Output[Artifact],
-):
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+
+def download_deployed_model(project_id: str, bucket_name: str, model_file: str) -> str:
     """
-    Compare the new best model against the currently deployed model on GCS.
-    Writes 'DEPLOY_NEW' or 'KEEP_OLD' to the decision artifact.
+    Download the currently deployed model from GCS.
+    
+    Returns:
+        Local path to downloaded model, or None if doesn't exist
     """
-
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logger = logging.getLogger("evaluate_deployment_model")
-
-    deployed_model_local_path = "/tmp/deployed_model.pkl"
-
-    # --- Download deployed model from GCS ---
-    logger.info(f"Downloading deployed model from gs://{bucket}/{deployed_model_file}")
-    client = storage.Client(project=project_id)
-    bucket_obj = client.bucket(bucket)
-    blob = bucket_obj.blob(deployed_model_file)
-
     try:
-        blob.download_to_filename(deployed_model_local_path)
-        logger.info("✅ Deployed model downloaded successfully!")
-        deployed_model_exists = True
+        logging.info(f"Attempting to download deployed model: gs://{bucket_name}/{model_file}")
+        
+        client = storage.Client(project=project_id)
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(model_file)
+        
+        if not blob.exists():
+            logging.info("No deployed model exists yet. This is the first deployment.")
+            return None
+        
+        local_path = '/tmp/deployed_model.pkl'
+        blob.download_to_filename(local_path)
+        
+        logging.info(f"Downloaded deployed model to {local_path}")
+        return local_path
+        
     except Exception as e:
-        logger.warning(f"⚠️ Could not download deployed model: {e}")
-        logger.info("This might be the first deployment - no existing model to compare.")
-        deployed_model_exists = False
+        logging.error(f"Error downloading deployed model: {e}")
+        return None
 
-    # --- Load new model ---
-    new_model_path = os.path.join(new_model.path, "model.joblib")
-    logger.info(f"Loading new model from {new_model_path}")
-    new_model_obj = joblib.load(new_model_path)
-    logger.info("New model loaded successfully!")
 
-    # --- Read test data ---
-    logger.info(f"Reading test data from {test_data.path}")
-    test_df = pd.read_csv(test_data.path)
-    X_test = test_df.drop("tsunami", axis=1)
-    y_test = test_df["tsunami"]
-    logger.info(f"Test data shape: {test_df.shape}")
+def evaluate_model(model_path: str, test_data_path: str) -> float:
+    """
+    Evaluate a model on test data.
+    
+    Returns:
+        Accuracy score
+    """
+    logging.info(f"Loading model from {model_path}")
+    model = joblib.load(model_path)
+    
+    logging.info(f"Loading test data from {test_data_path}")
+    test_data = pd.read_csv(test_data_path)
+    
+    X_test = test_data.drop('tsunami', axis=1)
+    y_test = test_data['tsunami']
+    
+    logging.info("Making predictions...")
+    y_pred = model.predict(X_test)
+    
+    accuracy = accuracy_score(y_test, y_pred)
+    logging.info(f"Model accuracy: {accuracy:.4f}")
+    
+    return accuracy
 
-    # --- Evaluate new model ---
-    logger.info("Evaluating new model on test data...")
-    y_pred_new = new_model_obj.predict(X_test)
-    new_accuracy = accuracy_score(y_test, y_pred_new)
-    logger.info(f"New Model Accuracy: {new_accuracy:.4f}")
 
-    # --- Decision logic ---
-    if not deployed_model_exists:
-        decision_value = "DEPLOY_NEW"
-        logger.info("✅ No deployed model exists. Deploying new model.")
+def compare_models(project_id: str, bucket: str, deployed_model_file: str,
+                  new_model_path: str, test_path: str, decision_path: str):
+    """
+    Compare new model against deployed model and make deployment decision.
+    
+    Writes decision to decision_path as a simple string:
+    - "DEPLOY_NEW" if new model is better
+    - "KEEP_OLD" if deployed model is better
+    """
+    
+    logging.info("=" * 60)
+    logging.info("DEPLOYMENT MODEL EVALUATION")
+    logging.info("=" * 60)
+    
+    # Evaluate new model
+    logging.info("Evaluating NEW model...")
+    new_accuracy = evaluate_model(new_model_path, test_path)
+    logging.info(f"New model accuracy: {new_accuracy:.4f}")
+    
+    # Try to download and evaluate deployed model
+    deployed_model_path = download_deployed_model(project_id, bucket, deployed_model_file)
+    
+    decision = "DEPLOY_NEW"  # Default decision
+    
+    if deployed_model_path is None:
+        # No deployed model exists - deploy the new one
+        logging.info("=" * 60)
+        logging.info("DECISION: DEPLOY_NEW")
+        logging.info("REASON: No deployed model exists (first deployment)")
+        logging.info("=" * 60)
+        decision = "DEPLOY_NEW"
     else:
-        logger.info(f"Loading deployed model from {deployed_model_local_path}")
-        deployed_model = joblib.load(deployed_model_local_path)
-
-        logger.info("Evaluating deployed model on test data...")
-        y_pred_deployed = deployed_model.predict(X_test)
-        deployed_accuracy = accuracy_score(y_test, y_pred_deployed)
-        logger.info(f"Deployed Model Accuracy: {deployed_accuracy:.4f}")
-
+        # Evaluate deployed model
+        logging.info("Evaluating DEPLOYED model...")
+        deployed_accuracy = evaluate_model(deployed_model_path, test_path)
+        logging.info(f"Deployed model accuracy: {deployed_accuracy:.4f}")
+        
+        # Compare
         improvement = new_accuracy - deployed_accuracy
-        logger.info(f"Accuracy improvement: {improvement:.4f}")
-
+        logging.info(f"Improvement: {improvement:+.4f}")
+        
         if new_accuracy > deployed_accuracy:
-            decision_value = "DEPLOY_NEW"
-            logger.info("✅ DECISION: DEPLOY NEW MODEL")
+            logging.info("=" * 60)
+            logging.info("DECISION: DEPLOY_NEW")
+            logging.info(f"REASON: New model is better ({new_accuracy:.4f} > {deployed_accuracy:.4f})")
+            logging.info("=" * 60)
+            decision = "DEPLOY_NEW"
         else:
-            decision_value = "KEEP_OLD"
-            logger.info("❌ DECISION: KEEP OLD MODEL")
+            logging.info("=" * 60)
+            logging.info("DECISION: KEEP_OLD")
+            logging.info(f"REASON: Deployed model is better ({deployed_accuracy:.4f} >= {new_accuracy:.4f})")
+            logging.info("=" * 60)
+            decision = "KEEP_OLD"
+    
+    # Write decision to output file
+    # CRITICAL: Write ONLY the decision string, nothing else!
+    logging.info(f"Writing decision to {decision_path}")
+    Path(decision_path).parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(decision_path, 'w') as f:
+        f.write(decision)  # Write ONLY "DEPLOY_NEW" or "KEEP_OLD"
+    
+    logging.info(f"Decision written: {decision}")
+    logging.info("=" * 60)
 
-    # --- Save decision artifact ---
-    Path(decision.path).parent.mkdir(parents=True, exist_ok=True)
-    with open(decision.path, "w") as f:
-        f.write(decision_value)
 
-    logger.info(f"Decision saved to {decision.path}: {decision_value}")
-    logger.info("Deployment model evaluation completed successfully.")
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--project_id', type=str, required=True)
+    parser.add_argument('--bucket', type=str, required=True)
+    parser.add_argument('--deployed_model_file', type=str, required=True)
+    parser.add_argument('--new_model_path', type=str, required=True)
+    parser.add_argument('--test_path', type=str, required=True)
+    parser.add_argument('--decision_path', type=str, required=True)
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
+    compare_models(
+        project_id=args.project_id,
+        bucket=args.bucket,
+        deployed_model_file=args.deployed_model_file,
+        new_model_path=args.new_model_path,
+        test_path=args.test_path,
+        decision_path=args.decision_path
+    )
