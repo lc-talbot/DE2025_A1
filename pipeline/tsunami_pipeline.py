@@ -160,20 +160,25 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
     )
     
     # Step 4a: Evaluate Random Forest
+    # Must wait for RF training to complete
     rf_eval_op = random_forest_evaluation(
         project=project_id,
         rf_model=rf_train_op.outputs['rf_model'],
         test_data=split_op.outputs['test_data']
     )
+    rf_eval_op.after(rf_train_op)  # Explicit dependency
     
     # Step 4b: Evaluate XGBoost
+    # Must wait for XGBoost training to complete
     xgb_eval_op = xgboost_evaluation(
         project=project_id,
         xgb_model=xgb_train_op.outputs['xgb_model'],
         test_data=split_op.outputs['test_data']
     )
+    xgb_eval_op.after(xgb_train_op)  # Explicit dependency
     
     # Step 5: Compare Models
+    # Must wait for BOTH evaluations to complete
     compare_op = model_compare(
         project=project_id,
         rf_metrics=rf_eval_op.outputs['rf_metrics'],
@@ -181,8 +186,11 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
         rf_model=rf_train_op.outputs['rf_model'],
         xgb_model=xgb_train_op.outputs['xgb_model']
     )
+    compare_op.after(rf_eval_op)   # Explicit dependency
+    compare_op.after(xgb_eval_op)  # Explicit dependency
     
     # Step 6: Evaluate Against Deployed Model
+    # Must wait for model comparison to complete
     deployment_eval_op = deployment_model_evaluation(
         project=project_id,
         bucket=model_bucket,
@@ -190,6 +198,7 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
         best_model=compare_op.outputs['best_model'],
         test_data=split_op.outputs['test_data']
     )
+    deployment_eval_op.after(compare_op)  # Explicit dependency
     
     # Step 7: Upload Model and Trigger CI/CD (conditional on approval)
     # Only uploads if deployment evaluation returns "DEPLOY_NEW"
