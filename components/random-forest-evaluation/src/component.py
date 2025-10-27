@@ -1,11 +1,12 @@
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
 
 import pandas as pd
 import joblib
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, confusion_matrix
 
 
 def evaluate_random_forest(model_path, test_path, metrics_path):
@@ -15,7 +16,7 @@ def evaluate_random_forest(model_path, test_path, metrics_path):
     Args:
         model_path: Path to the trained model (.pkl)
         test_path: Path to test data CSV
-        metrics_path: Path to save accuracy metric
+        metrics_path: Path to save metrics as JSON
     """
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     
@@ -37,9 +38,16 @@ def evaluate_random_forest(model_path, test_path, metrics_path):
     logging.info('Making predictions on test data...')
     y_pred = rf_model.predict(X_test)
     
-    # Calculate accuracy
-    accuracy = accuracy_score(y_test, y_pred)
+    # Calculate metrics
+    accuracy = float(accuracy_score(y_test, y_pred))
+    precision = float(precision_score(y_test, y_pred, average='binary', zero_division=0))
+    recall = float(recall_score(y_test, y_pred, average='binary', zero_division=0))
+    f1 = float(f1_score(y_test, y_pred, average='binary', zero_division=0))
+    
     logging.info(f'Random Forest Accuracy: {accuracy:.4f}')
+    logging.info(f'Random Forest Precision: {precision:.4f}')
+    logging.info(f'Random Forest Recall: {recall:.4f}')
+    logging.info(f'Random Forest F1 Score: {f1:.4f}')
     
     # Detailed metrics
     logging.info('\n=== Classification Report ===')
@@ -52,14 +60,23 @@ def evaluate_random_forest(model_path, test_path, metrics_path):
     logging.info(f'True Negatives: {cm[0][0]}, False Positives: {cm[0][1]}')
     logging.info(f'False Negatives: {cm[1][0]}, True Positives: {cm[1][1]}')
     
+    # Create metrics dictionary
+    metrics = {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1
+    }
+    
     # Create directory if it doesn't exist
     Path(metrics_path).parent.mkdir(parents=True, exist_ok=True)
     
-    # Save accuracy to file (for pipeline to use)
+    # Save metrics as JSON (for pipeline to use)
+    logging.info(f'Saving metrics to {metrics_path}')
     with open(metrics_path, 'w') as f:
-        f.write(str(accuracy))
+        json.dump(metrics, f, indent=2)
     
-    logging.info(f'Accuracy metric saved to {metrics_path}')
+    logging.info(f'Metrics saved: {metrics}')
     logging.info('Random Forest evaluation component finished successfully!')
 
 
@@ -71,7 +88,7 @@ def parse_command_line_arguments():
     parser.add_argument('--test_path', type=str, required=True,
                         help="Path to the test data CSV file")
     parser.add_argument('--metrics_path', type=str, required=True,
-                        help="Path to save the accuracy metric")
+                        help="Path to save the metrics JSON file")
     args = parser.parse_args()
     return vars(args)
 
