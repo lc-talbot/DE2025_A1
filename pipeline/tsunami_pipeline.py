@@ -180,7 +180,11 @@ def tsunami_pipeline(project_id: str, data_bucket: str, data_filename: str,
     )
     
     # Step 7: Upload Model and Trigger CI/CD (conditional on approval)
-    with dsl.If(deployment_eval_op.outputs['decision'].path != '', name='check-deployment-approval'):
+    # FIXED: Using dsl.Condition (not dsl.If) for KFP v2 compatibility
+    with dsl.Condition(
+        deployment_eval_op.outputs['decision'].path != '',
+        name='check-deployment-approval'
+    ):
         upload_op = model_upload_trigger_cicd(
             project=project_id,
             temp_bucket=temp_bucket,
