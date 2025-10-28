@@ -54,18 +54,19 @@
       "id": "deploy-prediction-api",
       "waitFor": ["push-prediction-api"]
     },
-   {
-  "name": "gcr.io/cloud-builders/gcloud",
-  "entrypoint": "bash",
-  "args": [
-    "-c",
-    "gcloud run services describe tsunami-prediction-api --region=${_REGION} --format='value(status.url)' > /workspace/api_url.txt"
-  ],
-  "waitFor": ["deploy-prediction-api"],
-  "id": "get-api-url"
+    {
+      "name": "gcr.io/cloud-builders/gcloud",
+      "entrypoint": "bash",
+      "args": [
+        "-c",
+        "gcloud run services describe tsunami-prediction-api --region=${_REGION} --format='value(status.url)' > /workspace/api_url.txt"
+      ],
+      "waitFor": ["deploy-prediction-api"],
+      "id": "get-api-url"
     },
     {
-      "name": "bash",
+      "name": "gcr.io/cloud-builders/gcloud",
+      "entrypoint": "bash",
       "args": [
         "-c",
         "echo \"API URL: $(cat /workspace/api_url.txt)\""
