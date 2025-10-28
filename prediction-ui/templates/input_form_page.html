@@ -1,21 +1,210 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Earthquake / Tsunami Risk Assessment</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tsunami Risk Assessment</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+        
+        input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        
+        input[type="number"]:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        input[type="number"]:hover, input[type="text"]:hover {
+            border-color: #667eea;
+        }
+        
+        .input-hint {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        
+        .warning-box p {
+            color: #856404;
+            margin: 0;
+            font-size: 0.9em;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        
+        .info-box p {
+            color: #0c5460;
+            margin: 0;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>🌊 Tsunami Risk Assessment</h1>
+        <p class="subtitle">Earthquake-based tsunami prediction system</p>
+        
+        <div class="info-box">
+            <p><strong>ℹ️ How it works:</strong> Enter earthquake parameters below to assess tsunami risk using our ML model.</p>
+        </div>
+        
+        <form method="POST" action="/">
+            <!-- 
+                NOTE: These field names should match your training data columns.
+                Update these based on your actual CSV columns (excluding 'tsunami' target).
+                Common earthquake features for tsunami prediction:
+            -->
+            
+            <div class="form-group">
+                <label for="Magnitude">Earthquake Magnitude</label>
+                <input type="number" step="0.1" name="Magnitude" id="Magnitude" 
+                       placeholder="e.g., 7.5" required min="0" max="10">
+                <div class="input-hint">Richter scale magnitude (0-10)</div>
+            </div>
 
-    <h1>Earthquake / Tsunami Risk Assessment</h1>
-    <form method="POST" action="/">
-        <label>Magnitude:</label>
-        <input type="number" step="0.1" name="Magnitude" required><br><br>
+            <div class="form-group">
+                <label for="Depth">Depth (km)</label>
+                <input type="number" step="0.1" name="Depth" id="Depth" 
+                       placeholder="e.g., 25.0" required min="0">
+                <div class="input-hint">Depth of earthquake hypocenter</div>
+            </div>
 
-        <label>Depth (km):</label>
-        <input type="number" step="0.1" name="Depth" required><br><br>
+            <div class="form-group">
+                <label for="Latitude">Latitude</label>
+                <input type="number" step="0.0001" name="Latitude" id="Latitude" 
+                       placeholder="e.g., 38.2975" required min="-90" max="90">
+                <div class="input-hint">Decimal degrees (-90 to 90)</div>
+            </div>
 
-        <label>Distance to Coast (km):</label>
-        <input type="number" step="0.1" name="DistanceToCoast" required><br><br>
+            <div class="form-group">
+                <label for="Longitude">Longitude</label>
+                <input type="number" step="0.0001" name="Longitude" id="Longitude" 
+                       placeholder="e.g., 142.3729" required min="-180" max="180">
+                <div class="input-hint">Decimal degrees (-180 to 180)</div>
+            </div>
 
-        <button type="submit">Assess Risk</button>
-    </form>
+            <!-- Add more fields based on your actual training data features -->
+            <!-- Example additional fields that might be in your data: -->
+            <!--
+            <div class="form-group">
+                <label for="FocalDepth">Focal Depth</label>
+                <input type="number" step="0.1" name="FocalDepth" id="FocalDepth" 
+                       placeholder="e.g., 30.0" required>
+            </div>
+            -->
+
+            <div class="warning-box">
+                <p>⚠️ <strong>Note:</strong> This is a prediction model. Always follow official tsunami warnings and evacuation orders.</p>
+            </div>
+
+            <button type="submit">🔍 Assess Tsunami Risk</button>
+        </form>
+    </div>
 </body>
 </html>
