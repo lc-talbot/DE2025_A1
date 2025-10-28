@@ -9,104 +9,20 @@ app.config["DEBUG"] = os.environ.get('DEBUG', 'False') == 'True'
 # Create an instance of your predictor class
 tsunami_predictor = TsunamiPredictor()
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def home():
-    """
-    Root endpoint - provides API information
-    """
-    return jsonify({
-        "service": "Tsunami Prediction API",
-        "version": "1.0",
-        "endpoints": {
-            "/predict/": "POST - Make tsunami predictions",
-            "/health": "GET - Check service health",
-            "/reload": "POST - Reload model from storage"
-        },
-        "status": "running"
-    }), 200
+    return "Tsunami Prediction API is running!"
 
-@app.route('/predict/', methods=['POST'])
-def predict():
-    """
-    Accepts a JSON input with earthquake/tsunami features
-    and returns a risk prediction as JSON.
-    
-    Example request body:
-    [
-      {
-        "Magnitude": 7.8,
-        "Depth": 25.0,
-        "Latitude": 38.5,
-        "Longitude": 142.0
-      }
-    ]
-    """
-    try:
-        prediction_input = request.get_json()
-        
-        # Validate input
-        if not prediction_input:
-            return jsonify({
-                "error": "No input data provided",
-                "message": "Please send JSON data in the request body"
-            }), 400
-        
-        # Make prediction
-        return tsunami_predictor.predict_single_record(prediction_input)
-        
-    except Exception as e:
-        return jsonify({
-            "error": "Invalid request",
-            "message": str(e)
-        }), 400
-
-@app.route('/health', methods=['GET'])
+@app.route('/health')
 def health():
-    """
-    Health check endpoint - returns service status and model availability
-    """
-    model_loaded = tsunami_predictor.model is not None
-    
-    health_info = {
-        "status": "healthy" if model_loaded else "degraded",
-        "model_loaded": model_loaded,
-        "model_type": type(tsunami_predictor.model).__name__ if model_loaded else None,
-        "model_bucket": tsunami_predictor.model_bucket,
-        "model_file": tsunami_predictor.model_file
-    }
-    
-    # Add feature information if available
-    if model_loaded and tsunami_predictor.feature_names:
-        health_info["expected_features"] = tsunami_predictor.feature_names
-        health_info["num_features"] = len(tsunami_predictor.feature_names)
-    
-    return jsonify(health_info), 200 if model_loaded else 503
+    return jsonify({"status": "healthy"}), 200
 
-@app.route('/reload', methods=['POST'])
-def reload():
-    """
-    Reload the model from Cloud Storage without restarting the service
-    """
-    try:
-        success = tsunami_predictor.reload_model()
-        
-        if success:
-            return jsonify({
-                "status": "success",
-                "message": "Model reloaded successfully",
-                "model_type": type(tsunami_predictor.model).__name__
-            }), 200
-        else:
-            return jsonify({
-                "status": "failed",
-                "message": "Failed to reload model"
-            }), 500
-            
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+@app.route('/predict', methods=['POST'])
+def predict():
+    # Your prediction logic here
+    data = request.json
+    # result = predict(data)
+    return jsonify({"prediction": "result here"})
 
 # Error handlers
 @app.errorhandler(404)
@@ -125,5 +41,5 @@ def internal_error(error):
 
 # Run the app
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(port=port, host='0.0.0.0', debug=app.config["DEBUG"])
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)

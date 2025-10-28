@@ -85,12 +85,5 @@
   ],
   "options": {
     "logging": "CLOUD_LOGGING_ONLY"
-  },
-  "substitutions": {
-    "_LOCATION": "us-central1",
-    "_REGION": "us-central1",
-    "_REPOSITORY": "tsunami-mlops-repo",
-    "_MODEL_BUCKET": "models_tsunami_2023019",
-    "_MODEL_FILE": "deployed_model.pkl"
   }
 }
