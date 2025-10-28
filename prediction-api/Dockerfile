@@ -1,19 +1,34 @@
-# Using python 3.12.7 slim image as the base image
-FROM python:3.12.7-slim
-# Defining working directory and copy the requirements file. We will run the commands inside this new directory
+FROM python:3.9-slim
+
+# Set working directory
 WORKDIR /app
-# Copy requirements.txt  to the working directory
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
 COPY requirements.txt .
-# Install required python packages
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-# Copy all files in prediction-api local host directory to /usr/src/myapp in Docker container
-COPY . .
-# Expose the port that our app runs in
-EXPOSE 5000
-# Environment Variables
-# Run our App
-CMD ["python3","app.py"]
-# We can also use an ENTRYPOINT and a CMD
-# Run our App
-#ENTRYPOINT ["python3"]
-#CMD ["app.py"]
+
+# Copy application code
+COPY app.py .
+COPY earthquake_tsunami_predictor.py .
+
+# Set environment variables
+ENV PORT=8080
+ENV PYTHONUNBUFFERED=1
+
+# Expose the port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:8080/health')" || exit 1
+
+# Run with gunicorn for production
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
