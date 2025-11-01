@@ -30,4 +30,4 @@ ENV MODEL_FILE=deployed_model.pkl
 # Expose the port
 EXPOSE 8080
 
-CMD ["sh", "-c", "gunicorn -w 2 -k uvicorn.workers.UvicornWorker app:app --bind 0.0.0.0:${PORT:-8080} --timeout 120"]
+CMD ["gunicorn","-w","2","app:app","-b","0.0.0.0:${PORT:-8080}","--timeout","120"]
