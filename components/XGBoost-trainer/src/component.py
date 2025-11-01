@@ -1,11 +1,44 @@
 import argparse
 import logging
 import sys
+import re
 from pathlib import Path
 
 import pandas as pd
 import joblib
-from xgboost import XGBClassifier
+import xgboost as xgb
+
+
+def find_target_column(df, pattern='tsunami'):
+    """
+    Find the target column using regex pattern matching.
+    
+    Args:
+        df: DataFrame to search
+        pattern: Regex pattern to match (case-insensitive)
+    
+    Returns:
+        Column name that matches the pattern
+    
+    Raises:
+        ValueError: If no matching column found
+    """
+    regex = re.compile(pattern, re.IGNORECASE)
+    matching_cols = [col for col in df.columns if regex.search(col)]
+    
+    if not matching_cols:
+        raise ValueError(
+            f"No column matching pattern '{pattern}' found. "
+            f"Available columns: {df.columns.tolist()}"
+        )
+    
+    if len(matching_cols) > 1:
+        logging.warning(
+            f"Multiple columns match pattern '{pattern}': {matching_cols}. "
+            f"Using first match: '{matching_cols[0]}'"
+        )
+    
+    return matching_cols[0]
 
 
 def train_xgboost(train_path, model_path):
@@ -22,24 +55,30 @@ def train_xgboost(train_path, model_path):
     logging.info(f'Reading training data from {train_path}')
     train_df = pd.read_csv(train_path)
     logging.info(f'Training data shape: {train_df.shape}')
+    logging.info(f'Column names: {train_df.columns.tolist()}')
+    logging.info(f'Column dtypes:\n{train_df.dtypes}')
+    logging.info(f'Null values:\n{train_df.isnull().sum()}')
+    
+    # Find target column using regex
+    target_col = find_target_column(train_df, pattern='tsunami')
+    logging.info(f'Found target column: "{target_col}"')
     
     # Separate features and target
-    X_train = train_df.drop('tsunami', axis=1)
-    y_train = train_df['tsunami']
+    X_train = train_df.drop(target_col, axis=1)
+    y_train = train_df[target_col]
     
     logging.info(f'Features: {list(X_train.columns)}')
     logging.info(f'Target distribution:\n{y_train.value_counts()}')
     
     # Train XGBoost model
     logging.info('Training XGBoost classifier...')
-    xgb_model = XGBClassifier(
+    xgb_model = xgb.XGBClassifier(
         n_estimators=100,
         max_depth=6,
         learning_rate=0.1,
         random_state=42,
-        eval_metric='logloss',
-        use_label_encoder=False,
-        n_jobs=-1  # Use all available cores
+        n_jobs=-1,  # Use all available cores
+        verbosity=1
     )
     
     xgb_model.fit(X_train, y_train)
