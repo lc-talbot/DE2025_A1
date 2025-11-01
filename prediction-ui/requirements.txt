@@ -2,3 +2,4 @@ setuptools
 flask
 requests
 gunicorn
+uvicorn
