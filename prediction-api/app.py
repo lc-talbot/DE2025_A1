@@ -7,8 +7,8 @@ from google.cloud import storage
 app = Flask(__name__)
 
 # --- Config via env (with safe fallbacks) ---
-MODEL_BUCKET   = os.getenv("_MODEL_BUCKET", "your-default-model-bucket")
-MODEL_FILENAME = os.getenv("MODEL_FILENAME", "deployed_model.pkl")
+MODEL_BUCKET   = os.getenv("_MODEL_BUCKET", "models_tsunami_2023019")
+MODEL_FILENAME = os.getenv("MODEL_FILENAME", "model_candidate.pkl")
 MODEL_GCS_PATH = f"gs://{MODEL_BUCKET}/models/{MODEL_FILENAME}"
 
 # --- Globals for lazy init ---

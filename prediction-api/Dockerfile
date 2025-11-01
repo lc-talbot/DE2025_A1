@@ -30,5 +30,4 @@ ENV MODEL_FILE=deployed_model.pkl
 # Expose the port
 EXPOSE 8080
 
-# Run Flask directly
-CMD python app.py
+CMD ["sh", "-c", "gunicorn -w 2 -k uvicorn.workers.UvicornWorker wsgi:app --bind 0.0.0.0:${PORT:-8080} --timeout 120"]

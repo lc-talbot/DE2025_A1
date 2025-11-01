@@ -7,7 +7,7 @@ app = Flask(__name__)
 app.config["DEBUG"] = os.environ.get('DEBUG', 'False') == 'True'
 
 # Get the prediction API URL from environment variable
-PREDICTOR_API_URL = os.environ.get("PREDICTOR_API_URL", "http://localhost:5000")
+PREDICTOR_API_URL = os.environ.get("PREDICTOR_API_URL", "https://tsunami-prediction-api-861179434993.us-central1.run.app")
 
 @app.route('/', methods=["GET", "POST"])
 def assess_risk():
