@@ -53,7 +53,7 @@ def train_random_forest(train_path, model_path):
     
     # Read training data
     logging.info(f'Reading training data from {train_path}')
-    train_df = pd.read_csv(train_path)
+    train_df = pd.read_csv(train_path, sep=';')
     logging.info(f'Training data shape: {train_df.shape}')
     logging.info(f'Column names: {train_df.columns.tolist()}')
     logging.info(f'Column dtypes:\n{train_df.dtypes}')
