@@ -1,100 +1,68 @@
 import os
+import tempfile
+import joblib
+from google.cloud import storage
 from flask import Flask, request, jsonify
-from earthquake_tsunami_predictor import TsunamiPredictor
 
-# Create the Flask app
 app = Flask(__name__)
-app.config["DEBUG"] = os.environ.get('DEBUG', 'False') == 'True'
 
-# Create an instance of your predictor class
-# This will automatically load the model from GCS bucket
-tsunami_predictor = TsunamiPredictor()
+# --- Configuration ---
+MODEL_BUCKET = os.getenv("_MODEL_BUCKET", "your-default-model-bucket")  # fallback bucket
+MODEL_FILENAME = os.getenv("MODEL_FILENAME", "model_candidate.pkl")
+MODEL_GCS_PATH = f"gs://{MODEL_BUCKET}/models/{MODEL_FILENAME}"
 
-@app.route('/')
-def home():
-    return "Tsunami Prediction API is running!"
+model = None  # global model variable
 
-@app.route('/health')
-def health():
-    model_loaded = tsunami_predictor.model is not None
-    return jsonify({
-        "status": "healthy" if model_loaded else "degraded",
-        "model_loaded": model_loaded
-    }), 200
+def load_model_from_gcs(gcs_path):
+    """Download a model from GCS and load it with joblib."""
+    try:
+        client = storage.Client()
+        bucket_name, blob_name = gcs_path.replace("gs://", "").split("/", 1)
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
 
-@app.route('/predict', methods=['POST'])
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        blob.download_to_filename(tmp_file.name)
+
+        loaded_model = joblib.load(tmp_file.name)
+        app.logger.info(f"✅ Loaded model from {gcs_path}")
+        return loaded_model
+    except Exception as e:
+        app.logger.error(f"❌ Error loading model from {gcs_path}: {e}")
+        return None
+
+
+# --- Load model at startup ---
+@app.before_first_request
+def initialize_model():
+    global model
+    app.logger.info(f"Attempting to load model from {MODEL_GCS_PATH}")
+    model = load_model_from_gcs(MODEL_GCS_PATH)
+    if model is None:
+        app.logger.warning("⚠️ Model not available; predictions will return error message.")
+
+
+@app.route("/predict/", methods=["POST"])
 def predict():
-    """
-    Prediction endpoint - expects JSON like:
-    [
-        {
-            "feature1": value1,
-            "feature2": value2,
-            ...
-        }
-    ]
-    """
-    try:
-        data = request.json
-        
-        # Validate input
-        if not data:
-            return jsonify({
-                "error": "No data provided",
-                "message": "Please send JSON data in the request body"
-            }), 400
-        
-        # Use the TsunamiPredictor to make prediction
-        return tsunami_predictor.predict_single_record(data)
-        
-    except Exception as e:
+    global model
+    data = request.get_json()
+    if model is None:
         return jsonify({
-            "error": "Prediction failed",
-            "message": str(e)
-        }), 500
+            "error": "Model not available",
+            "message": "Model is not loaded. Please check server logs.",
+            "prediction": None,
+            "tsunami_risk": "Unknown"
+        }), 503
 
-@app.route('/reload-model', methods=['POST'])
-def reload_model():
-    """
-    Endpoint to reload the model from GCS without restarting the service
-    """
     try:
-        success = tsunami_predictor.reload_model()
-        if success:
-            return jsonify({
-                "status": "success",
-                "message": "Model reloaded successfully"
-            }), 200
-        else:
-            return jsonify({
-                "status": "error",
-                "message": "Failed to reload model"
-            }), 500
-    except Exception as e:
+        import pandas as pd
+        df = pd.DataFrame(data)
+        prediction = model.predict(df)[0]
+        risk = "High" if prediction == 1 else "Low"
         return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
-
-# Error handlers
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({
-        "error": "Not found",
-        "message": "The requested endpoint does not exist"
-    }), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({
-        "error": "Internal server error",
-        "message": "An unexpected error occurred"
-    }), 500
-
-# Run the app
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    print(f"Starting Tsunami Prediction API on port {port}")
-    print(f"Model bucket: {os.environ.get('MODEL_BUCKET', 'models_tsunami_2023019')}")
-    print(f"Model file: {os.environ.get('MODEL_FILE', 'deployed_model.pkl')}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+            "prediction": int(prediction),
+            "tsunami_risk": risk,
+            "message": "Model prediction successful"
+        })
+    except Exception as e:
+        return jsonify({"error": "Prediction failed", "message": str(e)}), 500
