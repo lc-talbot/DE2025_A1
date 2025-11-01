@@ -72,3 +72,11 @@ def predict():
     except Exception as e:
         app.logger.exception("Prediction failed")
         return jsonify({"error": "Prediction failed", "message": str(e)}), 500
+    
+
+
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))  # Cloud Run injects PORT
+    app.run(host="0.0.0.0", port=port, debug=True)

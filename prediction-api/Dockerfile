@@ -25,9 +25,9 @@ COPY earthquake_tsunami_predictor.py .
 ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
 ENV MODEL_BUCKET=models_tsunami_2023019
-ENV MODEL_FILE=deployed_model.pkl
+ENV MODEL_FILE=model_candidate.pkl
 
 # Expose the port
 EXPOSE 8080
 
-CMD ["gunicorn","-w","2","app:app","-b","0.0.0.0:${PORT:-8080}","--timeout","120"]
+CMD ["python", "app.py"]
