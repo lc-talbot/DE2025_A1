@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tsunami Risk Assessment</title>
   <style>
-    /* (keep your styles; trimmed for brevity) */
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:system-ui,-apple-system,Segoe UI,Tahoma,Arial,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
     .container{background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:40px;max-width:600px;width:100%}
@@ -18,6 +17,7 @@
     .input-hint{font-size:.85em;color:#888;margin-top:4px}
     button{width:100%;padding:15px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:8px;font-size:1.1em;font-weight:600;cursor:pointer;transition:.2s;margin-top:10px}
     button:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(102,126,234,.3)}
+    button:active{transform:translateY(0)}
     .info-box{background:#d1ecf1;border-left:4px solid #17a2b8;padding:15px;margin-bottom:25px;border-radius:4px;color:#0c5460;font-size:.92em}
   </style>
 </head>
@@ -27,12 +27,10 @@
     <p class="subtitle">Earthquake-based tsunami prediction</p>
 
     <div class="info-box">
-      <p><strong>ℹ️ How it works:</strong> Enter earthquake parameters. We’ll send them to the prediction API and show the model’s output.</p>
+      <p><strong>ℹ️ How it works:</strong> Enter earthquake parameters. We'll send them to the prediction API and show the model's output.</p>
     </div>
 
-    <form method="POST" action="/">
-      <!-- The names here MUST match the model feature columns exactly -->
-
+    <form id="assessmentForm" method="POST" action="/">
       <div class="form-group">
         <label for="magnitude">Magnitude</label>
         <input type="number" step="0.1" id="magnitude" name="magnitude" placeholder="e.g., 7.5" required min="0" max="10"/>
@@ -60,8 +58,17 @@
         <input type="number" step="0.0001" id="longitude" name="longitude" placeholder="e.g., 142.3729" required min="-180" max="180"/>
       </div>
 
-      <button type="submit">🔍 Assess Tsunami Risk</button>
+      <button type="submit" id="submitBtn">🔍 Assess Tsunami Risk</button>
     </form>
   </div>
+
+  <script>
+    // Simple form submission handler
+    document.getElementById('assessmentForm').addEventListener('submit', function(e) {
+      console.log('Form submitted');
+      // Allow default form submission to POST endpoint
+      // This will POST the form data to / endpoint
+    });
+  </script>
 </body>
 </html>
