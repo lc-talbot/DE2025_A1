@@ -6,6 +6,7 @@ import joblib
 from flask import Flask, request, jsonify
 from google.cloud import storage
 import pandas as pd
+import numpy as np
 
 app = Flask(__name__)
 
@@ -137,7 +138,7 @@ def predict():
         return jsonify({
             "prediction": int(final_prediction),
             "tsunami_risk": risk_level,
-            "probability": round(final_probability, 4),
+            "probability": round(float(final_probability), 4),
             "message": "Tsunami likely" if final_prediction == 1 else "No tsunami expected",
             "features_used": EXPECTED_FEATURES
         }), 200
