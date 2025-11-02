@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # --- Config via env (with safe fallbacks) ---
 MODEL_BUCKET = os.getenv("MODEL_BUCKET", "models_tsunami_2023019")
-DEPLOYED_MODEL_PATH = os.getenv("DEPLOYED_MODEL_PATH", "model_candidate.pkl")
+DEPLOYED_MODEL_PATH = os.getenv("DEPLOYED_MODEL_PATH", "candidate_model.pkl")
 
 # Expected features (must match your training data)
 EXPECTED_FEATURES = ["magnitude", "cdi", "depth", "latitude", "longitude"]
