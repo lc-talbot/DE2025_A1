@@ -29,7 +29,7 @@ TEMP_BUCKET = os.getenv('TEMP_BUCKET', 'temp_tsunami_2023019')
 @dsl.container_component
 def data_ingestion(project: str, bucket: str, data_file_name: str, dataset: Output[Dataset]):
     return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/data-ingestion:0.0.1',
+        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/data-ingestion:0.0.2',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--project_id', project, '--bucket', bucket, '--file_name', data_file_name, '--feature_path',
               dataset.path])
@@ -38,7 +38,7 @@ def data_ingestion(project: str, bucket: str, data_file_name: str, dataset: Outp
 @dsl.container_component
 def train_test_split(project: str, dataset: Input[Dataset], train_data: Output[Dataset], test_data: Output[Dataset]):
     return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/train-test-split:0.0.1',
+        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/train-test-split:0.0.2',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--feature_path', dataset.path, '--train_path', train_data.path, '--test_path', test_data.path])
 
@@ -46,7 +46,7 @@ def train_test_split(project: str, dataset: Input[Dataset], train_data: Output[D
 @dsl.container_component
 def random_forest_trainer(project: str, train_data: Input[Dataset], rf_model: Output[Model]):
     return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/random-forest-trainer:0.0.1',
+        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/random-forest-trainer:0.0.2',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--train_path', train_data.path, '--model_path', rf_model.path])
 
@@ -54,7 +54,7 @@ def random_forest_trainer(project: str, train_data: Input[Dataset], rf_model: Ou
 @dsl.container_component
 def xgboost_trainer(project: str, train_data: Input[Dataset], xgb_model: Output[Model]):
     return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/xgboost-trainer:0.0.1',
+        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/xgboost-trainer:0.0.2',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--train_path', train_data.path, '--model_path', xgb_model.path])
 
@@ -62,7 +62,7 @@ def xgboost_trainer(project: str, train_data: Input[Dataset], xgb_model: Output[
 @dsl.container_component
 def random_forest_evaluation(project: str, rf_model: Input[Model], test_data: Input[Dataset], rf_metrics: Output[Metrics]):
     return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/random-forest-evaluation:0.0.1',
+        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/random-forest-evaluation:0.0.2',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--model_path', rf_model.path, '--test_path', test_data.path, '--metrics_path', rf_metrics.path])
 
@@ -70,7 +70,7 @@ def random_forest_evaluation(project: str, rf_model: Input[Model], test_data: In
 @dsl.container_component
 def xgboost_evaluation(project: str, xgb_model: Input[Model], test_data: Input[Dataset], xgb_metrics: Output[Metrics]):
     return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/xgboost-evaluation:0.0.1',
+        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/xgboost-evaluation:0.0.2',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--model_path', xgb_model.path, '--test_path', test_data.path, '--metrics_path', xgb_metrics.path])
 
@@ -80,7 +80,7 @@ def model_compare(project: str, rf_metrics: Input[Metrics], xgb_metrics: Input[M
                   rf_model: Input[Model], xgb_model: Input[Model],
                   best_model: Output[Model], best_model_name: Output[Artifact]):
     return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/model-compare:0.0.1',
+        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/model-compare:0.0.2',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--rf_metrics_path', rf_metrics.path, '--xgb_metrics_path', xgb_metrics.path,
               '--rf_model_path', rf_model.path, '--xgb_model_path', xgb_model.path,
@@ -91,7 +91,7 @@ def model_compare(project: str, rf_metrics: Input[Metrics], xgb_metrics: Input[M
 def model_upload_trigger_cicd(project: str, temp_bucket: str, model_bucket: str, 
                               model_file_name: str, best_model: Input[Model], cicd_webhook_url: str):
     return dsl.ContainerSpec(
-        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/model-upload-trigger-cicd:0.0.1',
+        image=f'{REGION}-docker.pkg.dev/{project}/{REPOSITORY}/model-upload-trigger-cicd:0.0.2',
         command=['python3', '/pipelines/component/src/component.py'],
         args=['--project_id', project, '--temp_bucket', temp_bucket, '--model_bucket', model_bucket,
               '--model_file_name', model_file_name, '--new_model_path', best_model.path,
