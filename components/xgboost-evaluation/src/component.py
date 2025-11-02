@@ -2,11 +2,69 @@ import argparse
 import json
 import logging
 import sys
+import re
 from pathlib import Path
 
 import pandas as pd
 import joblib
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, confusion_matrix
+
+
+def find_target_column(df, pattern='tsunami'):
+    """
+    Find the target column using regex pattern matching.
+    
+    Args:
+        df: DataFrame to search
+        pattern: Regex pattern to match (case-insensitive)
+    
+    Returns:
+        Column name that matches the pattern
+    
+    Raises:
+        ValueError: If no matching column found
+    """
+    regex = re.compile(pattern, re.IGNORECASE)
+    matching_cols = [col for col in df.columns if regex.search(col)]
+    
+    if not matching_cols:
+        raise ValueError(
+            f"No column matching pattern '{pattern}' found. "
+            f"Available columns: {df.columns.tolist()}"
+        )
+    
+    if len(matching_cols) > 1:
+        logging.warning(
+            f"Multiple columns match pattern '{pattern}': {matching_cols}. "
+            f"Using first match: '{matching_cols[0]}'"
+        )
+    
+    return matching_cols[0]
+
+
+def read_data_with_delimiter_detection(filepath):
+    """
+    Read CSV with automatic delimiter detection.
+    
+    Args:
+        filepath: Path to CSV file
+    
+    Returns:
+        pandas DataFrame
+    """
+    # Try common delimiters
+    for delimiter in [',', ';', '\t', '|']:
+        try:
+            df = pd.read_csv(filepath, delimiter=delimiter, nrows=5)
+            if len(df.columns) > 1:
+                logging.info(f"Detected delimiter: '{delimiter}'")
+                return pd.read_csv(filepath, delimiter=delimiter)
+        except Exception:
+            continue
+    
+    # If nothing worked, default to comma
+    logging.warning("Could not detect delimiter, defaulting to comma")
+    return pd.read_csv(filepath)
 
 
 def evaluate_xgboost(model_path, test_path, metrics_path):
@@ -25,14 +83,23 @@ def evaluate_xgboost(model_path, test_path, metrics_path):
     xgb_model = joblib.load(model_path)
     logging.info('Model loaded successfully!')
     
-    # Read test data
+    # Read test data with delimiter detection
     logging.info(f'Reading test data from {test_path}')
-    test_df = pd.read_csv(test_path)
+    test_df = read_data_with_delimiter_detection(test_path)
     logging.info(f'Test data shape: {test_df.shape}')
+    logging.info(f'Column names: {test_df.columns.tolist()}')
+    logging.info(f'Column dtypes:\n{test_df.dtypes}')
+    
+    # Find target column using regex
+    target_col = find_target_column(test_df, pattern='tsunami')
+    logging.info(f'Found target column: "{target_col}"')
     
     # Separate features and target
-    X_test = test_df.drop('tsunami', axis=1)
-    y_test = test_df['tsunami']
+    X_test = test_df.drop(target_col, axis=1)
+    y_test = test_df[target_col]
+    
+    logging.info(f'Features shape: {X_test.shape}')
+    logging.info(f'Target shape: {y_test.shape}')
     
     # Make predictions
     logging.info('Making predictions on test data...')
