@@ -5,6 +5,7 @@ from pathlib import Path
 
 from google.cloud import storage
 
+# this is a comment to show the components auto build with git push
 
 def download_data(project_id, bucket, file_name, feature_path):
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
