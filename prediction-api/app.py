@@ -10,6 +10,8 @@ import numpy as np
 
 app = Flask(__name__)
 
+# this is a test comment to trigger the deployment of the ui / api
+
 # --- Config via env (with safe fallbacks) ---
 MODEL_BUCKET = os.getenv("MODEL_BUCKET", "models_tsunami_2023019")
 DEPLOYED_MODEL_PATH = os.getenv("DEPLOYED_MODEL_PATH", "candidate_model.pkl")
