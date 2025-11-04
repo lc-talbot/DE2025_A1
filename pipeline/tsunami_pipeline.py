@@ -11,6 +11,7 @@ from kfp.dsl import (Artifact,
                      OutputPath)
 import os
 
+# this is another test to trigger the pipeline build
 
 # ==================== CONFIGURATION ====================
 # These can be set via environment variables or defaults
